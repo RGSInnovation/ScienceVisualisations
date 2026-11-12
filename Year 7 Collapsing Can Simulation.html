@@ -1,0 +1,841 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Collapsing Can | Year 7 Interactive Particle Model</title>
+<style>
+:root{
+  --bg:#f3f4ef; --card:#fff; --line:#dde3dc; --ink:#16302a; --text:#2a3f3a; --muted:#64766f;
+  --forest:#17332c; --forest2:#24493f; --accent:#0e7c86; --water:#1c8fd6; --air:#93a3ad;
+  --amber:#d6862a; --red:#c2452d; --soft:#eef3ee;
+  --shadow:0 1px 2px rgba(22,48,42,.05),0 8px 28px rgba(22,48,42,.07);
+}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;color:var(--text);font-size:15px;line-height:1.45}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid #5fbfc7;outline-offset:2px}
+
+header{background:linear-gradient(120deg,var(--forest),var(--forest2));color:#fff;padding:16px max(18px,calc((100vw - 1400px)/2));display:flex;gap:18px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.kicker{font-weight:700;text-transform:uppercase;letter-spacing:.16em;font-size:10.5px;opacity:.72}
+h1{font-family:Georgia,'Times New Roman',serif;font-size:clamp(22px,2.6vw,32px);font-weight:600;margin:2px 0 0;letter-spacing:-.01em}
+.tools{display:flex;gap:8px;flex-wrap:wrap}
+.tool{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.28);color:#fff;border-radius:9px;padding:8px 13px;font-size:13px;font-weight:650;min-height:38px;display:inline-flex;align-items:center;gap:8px;transition:background .15s}
+.tool:hover{background:rgba(255,255,255,.17)}
+.tool[aria-pressed="true"]{background:#fff;color:var(--forest);border-color:#fff}
+.tool kbd,.keys kbd{font:600 10.5px ui-monospace,Consolas,monospace;border:1px solid currentColor;border-radius:4px;padding:0 4px;opacity:.6}
+
+main{max-width:1436px;margin:0 auto;padding:16px 18px 10px}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 348px;gap:16px;align-items:start}
+.panel{border:1px solid var(--line);background:var(--card);border-radius:14px;box-shadow:var(--shadow)}
+
+.stagehead{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.status{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--forest2);background:var(--soft);border-radius:99px;padding:6px 13px}
+.status i{width:8px;height:8px;border-radius:50%;background:#4aa585}
+.status.hot i{background:var(--amber)}.status.cold i{background:var(--water)}.status.crushed i{background:var(--red)}
+.viewtoggles{display:flex;gap:8px;flex-wrap:wrap}
+.chipbtn{display:inline-flex;align-items:center;gap:8px;border:1px solid #c9d5cd;background:#fff;border-radius:99px;padding:6px 13px 6px 9px;font-size:13px;font-weight:650;color:#35524a;min-height:36px;transition:background .15s,border-color .15s}
+.chipbtn:hover{border-color:var(--accent)}
+.chipbtn .sw{width:28px;height:16px;border-radius:99px;background:#cfd9d2;position:relative;transition:background .2s;flex:none}
+.chipbtn .sw:after{content:'';position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.chipbtn[aria-pressed="true"]{background:#e8f4f2;border-color:#8cc5c4;color:#0c5f67}
+.chipbtn[aria-pressed="true"] .sw{background:var(--accent)}
+.chipbtn[aria-pressed="true"] .sw:after{transform:translateX(12px)}
+
+.stage{position:relative;background:#f7f9f6}
+canvas{width:100%;height:auto;display:block;touch-action:pan-y}
+.toast{position:absolute;left:50%;top:12px;transform:translate(-50%,-8px);max-width:min(88%,620px);background:#fff8ea;border:1px solid #e6c489;color:#74501c;border-radius:10px;padding:9px 14px;font-size:14px;font-weight:650;text-align:center;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;box-shadow:0 6px 20px rgba(80,60,20,.12)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.modelnote{position:absolute;bottom:8px;left:12px;font-size:11px;color:#6d7f78;background:rgba(255,255,255,.82);padding:3px 7px;border-radius:5px;pointer-events:none}
+.paused{position:absolute;right:12px;bottom:8px;font-size:11px;font-weight:800;letter-spacing:.12em;color:#fff;background:var(--forest);padding:4px 9px;border-radius:5px;display:none}
+.is-paused .paused{display:block}
+
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1px solid var(--line)}
+.metric{padding:10px 14px 11px;border-right:1px solid var(--line);min-width:0}
+.metric:last-child{border-right:0}
+.metric .lab{display:block;font-weight:700;color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.metric .val{font-size:clamp(22px,2.3vw,31px);font-weight:750;font-variant-numeric:tabular-nums;line-height:1.2;color:var(--ink);white-space:nowrap}
+.metric .val em{font-style:normal;font-size:.45em;color:var(--muted);margin-left:4px;font-weight:650}
+.bar{height:6px;background:#e7ece7;border-radius:9px;margin-top:6px;position:relative}
+.bar span{position:absolute;inset:0 auto 0 0;border-radius:9px;background:var(--water);width:50%}
+.bar b{position:absolute;top:-3px;bottom:-3px;width:2px;background:#8d9b95;border-radius:2px}
+.metric.temp .bar span{background:linear-gradient(90deg,#4aa3dc,#e0a13a 55%,#d2553a)}
+.metric.ext .bar span{background:var(--amber)}
+.metric.diff .val{color:var(--muted)}
+.metric.diff.big .val{color:var(--red)}
+.metric.diff .dir{font-size:12px;font-weight:650;color:var(--muted);margin-top:3px;min-height:17px}
+.metric.diff.big .dir{color:var(--red)}
+
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;padding:9px 14px;border-top:1px solid var(--line);font-size:12.5px;color:#4d635b}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.dot{width:12px;height:12px;border-radius:50%;background:var(--water);box-shadow:inset 0 0 0 1.5px #0f6aa8;flex:none}
+.dot.air{background:var(--air);box-shadow:inset 0 0 0 1.5px #6f808b}
+.arr{width:24px;height:4px;border-radius:2px;background:var(--amber);position:relative;flex:none;margin-right:5px}
+.arr:after{content:'';position:absolute;right:-6px;top:-4px;border:6px solid transparent;border-left-color:inherit;border-right:0;border-left-color:var(--amber)}
+.arr.in{background:var(--accent)}.arr.in:after{border-left-color:var(--accent)}
+.arr.res{background:var(--red)}.arr.res:after{border-left-color:var(--red)}
+.forcekey{display:none}.show-forces .forcekey{display:inline-flex}
+
+.explainbox{margin-top:14px;padding:14px 18px;font-size:15px}
+.explainbox h2{font:600 18px Georgia,serif;margin:0 0 6px;color:var(--ink)}
+.explainbox p{margin:0 0 6px}
+.chain{margin:8px 0 4px;padding:0;list-style:none;counter-reset:c;display:grid;gap:6px}
+.chain li{counter-increment:c;position:relative;padding:8px 12px 8px 44px;background:var(--soft);border-radius:9px}
+.chain li:before{content:counter(c);position:absolute;left:11px;top:8px;width:22px;height:22px;border-radius:50%;background:var(--forest2);color:#fff;font:700 12px/22px system-ui;text-align:center}
+.chain b{color:var(--ink)}
+.verdict{display:inline-block;font-size:13px;font-weight:700;border-radius:99px;padding:3px 11px;margin:2px 0 6px;background:#f4ead2;color:#6c5216}
+.verdict.ok{background:#dff1e6;color:#1f6245}
+.tip{border-left:3px solid var(--amber);background:#fff8ea;padding:8px 12px;border-radius:4px;color:#6a4b17;margin-top:8px}
+.again{margin-top:10px;background:var(--forest2);color:#fff;border:0;border-radius:9px;padding:10px 16px;font-weight:700}
+.again:hover{background:var(--forest)}
+
+.col{display:grid;gap:12px}
+.card{padding:13px 15px 14px;transition:border-color .2s,box-shadow .2s}
+.card h3{margin:0 0 6px;display:flex;align-items:center;gap:9px;font:600 17px Georgia,serif;color:var(--ink)}
+.num{background:var(--soft);color:var(--forest2);border-radius:50%;font:700 12px system-ui;width:24px;height:24px;display:inline-flex;justify-content:center;align-items:center;flex:none}
+.card.next{border-color:#7fbdb9;box-shadow:0 0 0 3px rgba(14,124,134,.12),var(--shadow)}
+.card.next .num{background:var(--accent);color:#fff}
+.card.pulse{animation:pulse .5s 2}
+@keyframes pulse{50%{box-shadow:0 0 0 6px rgba(214,134,42,.35)}}
+.card p{margin:0 0 9px;font-size:13px;color:var(--muted)}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.btns.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.btn{background:#f5f8f4;color:#284a40;border:1px solid #c9d7cd;border-radius:9px;padding:9px 8px;font-size:13.5px;font-weight:700;min-height:44px;line-height:1.2;transition:background .15s,border-color .15s,transform .05s}
+.btn.wide{width:100%}
+.btn:not(:disabled):hover{border-color:var(--accent);background:#fff}
+.btn:not(:disabled):active{transform:translateY(1px)}
+.btn[aria-pressed="true"]{background:var(--forest2);border-color:var(--forest2);color:#fff}
+.btn.heat[aria-pressed="true"]{background:#c7641f;border-color:#c7641f}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.hint{font-size:12.5px;color:#3d5a50;background:var(--soft);border-radius:7px;padding:7px 10px;margin-top:9px}
+.seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.seg label{position:relative;display:block}
+.seg input{position:absolute;opacity:0;inset:0;width:100%;height:100%;cursor:pointer;margin:0}
+.seg span{display:flex;align-items:center;justify-content:center;text-align:center;min-height:44px;padding:6px 4px;border:1px solid #dcc995;background:#fffaf0;border-radius:9px;font-size:13px;font-weight:700;color:#5e4816;line-height:1.2}
+.seg input:checked+span{background:#7a5a14;border-color:#7a5a14;color:#fff}
+.seg input:focus-visible+span{outline:3px solid #5fbfc7;outline-offset:2px}
+.seg input:disabled{cursor:not-allowed}
+.seg input:disabled:not(:checked)+span{opacity:.4}
+textarea{width:100%;resize:vertical;min-height:46px;border:1px solid #d9d2bd;border-radius:8px;background:#fffdf8;padding:8px 10px;font-size:13px;margin-top:8px;display:block}
+.skip{background:none;border:0;padding:6px 0 0;font-size:12.5px;color:var(--muted);text-decoration:underline}
+.skip:disabled{opacity:.4;cursor:default}
+
+footer{max-width:1436px;margin:0 auto;padding:6px 18px 22px;font-size:12px;color:#71837b}
+.keys{margin-top:4px}
+
+.quiet .x{display:none!important}
+
+@media(max-width:1020px){.layout{grid-template-columns:1fr}.col{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}}
+@media(max-width:620px){
+  header{padding:13px 14px}main{padding:12px 10px}
+  .col{grid-template-columns:1fr}
+  .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .metric:nth-child(2){border-right:0}.metric:nth-child(-n+2){border-bottom:1px solid var(--line)}
+  .modelnote{font-size:9.5px}.tool kbd{display:none}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="kicker">RGS Guildford Dubai · Year 7 Science · 7.4 Forces</div>
+    <h1>Why does the can collapse?</h1>
+  </div>
+  <div class="tools">
+    <button type="button" class="tool" id="explainBtn" aria-pressed="true" title="Hide the explanations while you question the class">Explanations <kbd>E</kbd></button>
+    <button type="button" class="tool" id="pauseBtn" aria-pressed="false">Pause <kbd>P</kbd></button>
+    <button type="button" class="tool" id="reset" title="Reset everything, including the prediction">Start again <kbd>R</kbd></button>
+  </div>
+</header>
+
+<main>
+<div class="layout">
+  <div>
+    <section class="panel" aria-label="Can simulation">
+      <div class="stagehead">
+        <div class="status" id="status" role="status" aria-live="polite"><i></i><span id="statusText">Open · room temperature</span></div>
+        <div class="viewtoggles">
+          <button type="button" class="chipbtn" id="outsideBtn" aria-pressed="false"><span class="sw"></span>Air outside the can</button>
+          <button type="button" class="chipbtn" id="forceBtn" aria-pressed="false"><span class="sw"></span>Force arrows</button>
+        </div>
+      </div>
+      <div class="stage" id="stage">
+        <canvas id="scene" width="960" height="600" role="img" aria-label="Cutaway of an aluminium can containing a little water, showing water and air particles, with a Bunsen burner or a cooling bath beneath it."></canvas>
+        <div class="toast" id="toast" role="status" aria-live="polite"></div>
+        <div class="modelnote">Simplified model · particle counts and timings are illustrative, not to scale</div>
+        <div class="paused">PAUSED</div>
+      </div>
+      <div class="metrics">
+        <div class="metric temp"><span class="lab">Temperature in can</span><div class="val"><span id="tempVal">25</span><em>°C</em></div><div class="bar"><span id="tempBar"></span></div></div>
+        <div class="metric"><span class="lab">Internal pressure</span><div class="val"><span id="pinVal">101</span><em>kPa</em></div><div class="bar"><span id="pinBar"></span><b style="left:67.5%"></b></div></div>
+        <div class="metric ext"><span class="lab">Atmospheric pressure</span><div class="val"><span id="poutVal">101</span><em>kPa</em></div><div class="bar"><span id="poutBar" style="width:67.5%"></span><b style="left:67.5%"></b></div></div>
+        <div class="metric diff" id="diffBox"><span class="lab">Pressure difference</span><div class="val"><span id="diffVal">0</span><em>kPa</em></div><div class="dir" id="diffDir">balanced</div></div>
+      </div>
+      <div class="legend">
+        <span><i class="dot"></i>Water particle (liquid or gas)</span>
+        <span id="waterReadout" aria-live="off">Liquid water: 100% remaining</span>
+        <span><i class="dot air"></i>Air particle</span>
+        <span class="forcekey"><i class="arr"></i>Push of outside air on the wall</span>
+        <span class="forcekey"><i class="arr in"></i>Push of inside gas on the wall</span>
+        <span class="forcekey"><i class="arr res"></i>Resultant force</span>
+        <span class="forcekey x" style="color:var(--muted)">Arrows compare forces on equal areas of wall (force = pressure × area). Pressure readings are model values.</span>
+      </div>
+    </section>
+
+    <section class="panel explainbox x" id="explainBox" aria-live="polite"></section>
+  </div>
+
+  <aside class="col" aria-label="Experiment controls">
+    <div class="panel card" id="card1">
+      <h3><span class="num">1</span>Heat</h3>
+      <p class="x">Boil the water with the can open, so steam can push the air out.</p>
+      <button type="button" class="btn wide heat" id="heatBtn" aria-pressed="false">Turn Bunsen on</button>
+      <div class="hint x" id="heatHint"></div>
+    </div>
+
+    <div class="panel card" id="card2">
+      <h3><span class="num">2</span>Predict</h3>
+      <p>If the hot can is sealed and then cooled, it will…</p>
+      <div class="seg" role="radiogroup" aria-label="Prediction">
+        <label><input type="radio" name="pred" value="collapse"><span>Collapse</span></label>
+        <label><input type="radio" name="pred" value="same"><span>Stay the same</span></label>
+        <label><input type="radio" name="pred" value="expand"><span>Expand</span></label>
+      </div>
+      <textarea id="reason" placeholder="Because… (think about particles, collisions and pressure)" aria-label="Reason for your prediction"></textarea>
+      <button type="button" class="skip" id="skipBtn">Skip the prediction</button>
+    </div>
+
+    <div class="panel card" id="card3">
+      <h3><span class="num">3</span>Seal</h3>
+      <p class="x">A lid is a thought experiment. Turning the can upside down into cold water is the real demonstration: it seals and cools together.</p>
+      <div class="btns">
+        <button type="button" class="btn" id="lidBtn" aria-pressed="false">Fit a lid</button>
+        <button type="button" class="btn" id="invertBtn" aria-pressed="false">Invert into cold water</button>
+      </div>
+      <div class="hint x" id="sealHint"></div>
+    </div>
+
+    <div class="panel card" id="card4">
+      <h3><span class="num">4</span>Cool</h3>
+      <p class="x">Choose how to cool the can. Try it sealed and open.</p>
+      <div class="btns three">
+        <button type="button" class="btn" id="airBtn" aria-pressed="false">In air</button>
+        <button type="button" class="btn" id="waterBtn" aria-pressed="false">Cold water</button>
+        <button type="button" class="btn" id="iceBtn" aria-pressed="false">Ice bath</button>
+      </div>
+      <div class="hint x" id="coolHint"></div>
+    </div>
+  </aside>
+</div>
+</main>
+
+<footer>
+  <strong>Important:</strong> a simplified educational model, not a practical method. Real can-crushing demonstrations need trained staff, a risk assessment and eye protection. Never heat a sealed container.
+  <div class="keys">Keys: <kbd>H</kbd> heat · <kbd>L</kbd> lid · <kbd>I</kbd> invert · <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> cool in air / water / ice · <kbd>A</kbd> air outside · <kbd>F</kbd> forces · <kbd>E</kbd> explanations · <kbd>P</kbd> pause · <kbd>R</kbd> start again</div>
+</footer>
+
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const cv = $('scene'), ctx = cv.getContext('2d');
+
+/* ---------- constants ---------- */
+const W = 960, H = 600, POUT = 101.3, ROOM = 25, TK0 = ROOM + 273.15;
+const CX = 480, CY0 = 272, DROP = 132, HW = 120, HH = 130, WALL = 7, GAP = 34, BENCH = 548;
+const PER = 46;            // representative particles drawn for one can-full of gas at room conditions
+const WATER_EQUIV = 4.5;   // finite initial liquid: enough water to form several can-volumes of steam
+const BASE = 62;           // px/s particle speed at room temperature
+const R = 5;               // particle radius: the same for liquid and gas (particles never change size)
+const COOL = { air:{to:25,k:.09,min:2}, water:{to:15,k:.16,min:2.5}, ice:{to:2,k:.24,min:3} };
+const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = (a,b,x) => { const t = clamp((x-a)/(b-a),0,1); return t*t*(3-2*t); };
+const ease = t => t*t*(3-2*t);
+const rand = (a,b) => a + Math.random()*(b-a);
+const tk = T => T + 273.15;
+const sat = T => 0.61094*Math.exp(17.625*T/(T+243.04));   // kPa, approximate saturation pressure of water
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- state ---------- */
+function initial(){
+  return { t:0, temp:ROOM, heating:false, cooling:'none', sealed:false, method:null,
+    x:.75*sat(ROOM)/POUT,          // fraction of the gas in the can that is water vapour (open can)
+    nAir:1-.75*sat(ROOM)/POUT, nVap:.75*sat(ROOM)/POUT, pAir:0, pVap:0, pIn:POUT,
+    xSeal:0, liquid:1, evaporated:0, condensed:0, escapedSteam:0,
+    crush:0, crushTarget:0, bulge:0, crunched:false, shake:0,
+    everHot:false, overheated:false, heatedSealed:false, finished:false, outcome:'', settle:0,
+    inflating:false, reinflated:false, drop:0, flip:0, lid:0, flame:0, recon:0, flow:0, condensing:0, entering:0,
+    prediction:'', skipped:false, predLocked:false };
+}
+let s = initial();
+const view = { outside:false, forces:false, explain:true, paused:false, outsideA:0, forceA:0 };
+let gas = [], outside = [], plume = [], drops = [], flashes = [], now = 0, last = performance.now(), frames = 0;
+
+function calc(){
+  const V = 1 - .4*s.crush + .03*s.bulge, r = tk(s.temp)/TK0;
+  s.pAir = POUT*s.nAir*r/V; s.pVap = POUT*s.nVap*r/V; s.pIn = s.pAir + s.pVap;
+  s.x = (s.nAir+s.nVap)>0 ? s.nVap/(s.nAir+s.nVap) : 0;
+}
+// Finite liquid is transferred into vapour as it evaporates and restored when it condenses.
+// Units are illustrative can-volumes of gas, not literal molecule counts.
+function phaseChange(dt){
+  const V = 1 - .4*s.crush + .03*s.bulge;
+  const nSat = sat(s.temp)/POUT * TK0/tk(s.temp) * V;
+  if(s.nVap > nSat){
+    const amount = Math.min(s.nVap-nSat, (s.nVap-nSat)*4*dt);
+    s.nVap -= amount;
+    s.liquid = Math.min(1, s.liquid + amount/WATER_EQUIV);
+    s.condensed += amount;
+    s.condensing = .8;
+  } else if(s.liquid > 0 && (!s.sealed || (s.heating && s.method==='lid'))){
+    const boiling = s.heating && s.temp>=99.5;
+    // Boiling can keep driving steam out of an open can as it replaces the air.
+    const rate = boiling ? .19 : (s.heating ? 1.05 : .16)*Math.max(0,nSat-s.nVap);
+    const amount = Math.min(s.liquid*WATER_EQUIV, rate*dt);
+    if(amount>0){
+      s.nVap += amount;
+      s.liquid = Math.max(0, s.liquid-amount/WATER_EQUIV);
+      s.evaporated += amount;
+    }
+  }
+}
+// Air entering an open can replaces escaped steam, maintaining atmospheric pressure.
+// Heating an open can reduces the number of gas particles it can contain at 101 kPa.
+function exchangeOpen(){
+  const V = 1 - .4*s.crush + .03*s.bulge;
+  const target = V*TK0/tk(s.temp);
+  const total = s.nAir+s.nVap;
+  if(total > target && total>0){
+    const excess = total-target;
+    // Rising steam flushes air through the mouth; some steam escapes alongside it.
+    // At other times, escaping gas is treated as a well-mixed sample.
+    const airOut = s.heating && s.temp>=95 && s.liquid>0
+      ? Math.min(s.nAir, .93*excess) : excess*s.nAir/total;
+    const vapOut = excess-airOut;
+    s.nAir = Math.max(0, s.nAir-airOut);
+    s.nVap = Math.max(0, s.nVap-vapOut);
+    s.escapedSteam += vapOut;
+  } else if(total < target){
+    s.nAir += target-total;
+    s.entering = .6;
+  }
+}
+
+/* ---------- can geometry (local coordinates, origin at can centre) ---------- */
+const indent = (y,sd) => { const u = (y - sd*20)/92; return s.crush*70*Math.exp(-u*u*u*u)*(1 + .09*Math.sin(y/15 + sd*1.3)); };
+const bulgeAt = y => s.bulge*6*Math.cos(clamp(y/HH,-1,1)*Math.PI/2);
+const half = (y,sd) => HW - indent(y,sd) + bulgeAt(y);
+function wallPath(closed){
+  const r = 16, n = 24; ctx.beginPath();
+  ctx.moveTo(GAP,-HH); ctx.lineTo(HW-r,-HH); ctx.quadraticCurveTo(HW,-HH,HW,-HH+r);
+  for(let i=0;i<=n;i++){ const y = lerp(-HH+r,HH-r,i/n); ctx.lineTo(half(y,1),y); }
+  ctx.quadraticCurveTo(HW,HH,HW-r,HH); ctx.lineTo(-HW+r,HH); ctx.quadraticCurveTo(-HW,HH,-HW,HH-r);
+  for(let i=0;i<=n;i++){ const y = lerp(HH-r,-HH+r,i/n); ctx.lineTo(-half(y,-1),y); }
+  ctx.quadraticCurveTo(-HW,-HH,-HW+r,-HH); ctx.lineTo(-GAP,-HH);
+  if(closed) ctx.closePath();
+}
+const canY = () => CY0 + DROP*ease(s.drop) - Math.sin(Math.PI*s.flip)*46;
+const flipped = () => s.flip > .5;
+const liquidVis = () => 1 - ease(clamp(s.flip*2,0,1));
+const surfaceY = () => HH - WALL/2 - (s.liquid>0 ? (4 + 30*s.liquid) : 0);
+const plug = () => s.method==='invert' ? ease(s.flip)*(8 + 24*smooth(0,.9,s.crush) + 6*smooth(95,30,s.temp)) : 0;
+function toScreen(x,y){ const a = Math.PI*ease(s.flip), c = Math.cos(a), n = Math.sin(a); return [CX + x*c - y*n, canY() + x*n + y*c]; }
+// outer wall x on screen, at a height dy below the can centre
+function wallX(side, dy){ const f = flipped(); return CX + side*(half(f?-dy:dy, f?-side:side) + WALL/2); }
+
+/* ---------- particles ---------- */
+function mkGas(kind, x, y, dirx, diry){
+  const m = rand(.7,1.3)*(kind==='vap'?1.15:1), a = rand(0,Math.PI*2);
+  let vx = Math.cos(a), vy = Math.sin(a);
+  if(dirx!==undefined){ const d = Math.hypot(dirx,diry)||1; vx = dirx/d; vy = diry/d; }
+  return { kind, x, y, vx:vx*m, vy:vy*m, mode:'', age:0 };
+}
+function build(){
+  calc(); gas = []; plume = []; drops = []; flashes = [];
+  const nA = Math.round(s.nAir*PER), nV = Math.round(s.nVap*PER), top = -HH+14, bot = surfaceY()-10;
+  for(let i=0;i<nA;i++) gas.push(mkGas('air', rand(-105,105), rand(top,bot)));
+  for(let i=0;i<nV;i++) gas.push(mkGas('vap', rand(-105,105), rand(top,bot)));
+  outside = Array.from({length:120}, () => { const a = rand(0,Math.PI*2), m = rand(.7,1.3)*.8;
+    let x, y; do { x = rand(8,W-8); y = rand(8,BENCH-12); } while(Math.abs(x-CX) < HW+14 && Math.abs(y-CY0) < HH+14);
+    return { x, y, vx:Math.cos(a)*m, vy:Math.sin(a)*m }; });
+}
+const live = k => gas.reduce((c,p) => c + (p.kind===k && p.mode!=='esc' && p.mode!=='cond' ? 1 : 0), 0);
+function pick(kind, score){ let best = null, b = Infinity;
+  for(const p of gas){ if(p.kind!==kind || p.mode) continue; const v = score(p); if(v < b){ b = v; best = p; } } return best; }
+function flash(x,y,inside){ if(!inside && s.drop > .5 && y > 436) return; if(flashes.length > 70) flashes.shift(); flashes.push({x,y,t:0,inside}); }
+function steer(p, tx, ty, k, dt){ const m = Math.hypot(p.vx,p.vy), dx = tx-p.x, dy = ty-p.y, d = Math.hypot(dx,dy)||1;
+  let vx = p.vx + dx/d*k*dt*m, vy = p.vy + dy/d*k*dt*m; const n = Math.hypot(vx,vy)||1; p.vx = vx/n*m; p.vy = vy/n*m; }
+
+function reconcile(dt){
+  s.recon -= dt; s.condensing = Math.max(0, s.condensing - dt); s.entering = Math.max(0, s.entering - dt);
+  if(s.recon > 0) return; s.recon = .045;
+  const tA = Math.round(s.nAir*PER), tV = Math.round(s.nVap*PER), cA = live('air'), cV = live('vap');
+  if(!s.sealed){
+    if(cA > tA){ const p = pick('air', p => Math.hypot(p.x, p.y+HH)); if(p) p.mode = 'esc'; }
+    else if(cA < tA){ const p = mkGas('air', rand(-GAP+10,GAP-10), -HH-40, rand(-.25,.25), 1); p.mode = 'in'; gas.push(p); s.entering = .6; }
+  }
+  if(cV > tV){
+    if(!s.sealed && s.nVap > 0){ const p = pick('vap', p => Math.hypot(p.x, p.y+HH)); if(p) p.mode = 'esc'; }
+    else { const p = pick('vap', p => HW - Math.abs(p.x)); if(p){ p.mode = 'cond'; s.condensing = .8; } }
+  } else if(cV < tV){
+    if(liquidVis() > .5 && s.liquid>0) gas.push(mkGas('vap', rand(-95,95), surfaceY()-R-1, rand(-.6,.6), -1));
+    else gas.push(mkGas('vap', rand(-60,60), rand(-40,40)));
+  }
+}
+
+function moveGas(dt){
+  const f = clamp(.8 + (s.temp-ROOM)/55, .42, 2.3)*BASE, lv = liquidVis() > .5;
+  const top = -HH + WALL/2 + R + plug(), bot = lv ? surfaceY() - R : HH - WALL/2 - R;
+  for(let i = gas.length-1; i >= 0; i--){
+    const p = gas[i]; p.age += dt;
+    if(p.mode==='esc'){ steer(p, 0, p.y < -HH+46 ? -HH-40 : -HH+20, 7, dt);
+      if((p.y < -HH+2 && Math.abs(p.x) < GAP-2) || p.age > 60){ const [sx,sy] = toScreen(clamp(p.x,-GAP+6,GAP-6), -HH-2);
+        plume.push({ x:sx, y:sy, vx:p.vx*f*.5 + rand(-8,8), vy:-Math.abs(p.vy*f)*.7 - 22, life:1, kind:p.kind }); gas.splice(i,1); continue; } }
+    else if(p.mode==='cond'){ steer(p, Math.sign(p.x||1)*HW, p.y, 5, dt); }
+    p.x += p.vx*f*dt; p.y += p.vy*f*dt;
+    if(p.mode==='in'){ p.x = clamp(p.x, -GAP+R+2, GAP-R-2); if(p.y > -HH+WALL+R+4) p.mode = ''; continue; }
+    const sd = p.x < 0 ? -1 : 1, lim = half(clamp(p.y,-HH+16,HH-16), sd) - WALL/2 - R;
+    if(Math.abs(p.x) > lim){
+      if(p.mode==='cond'){ addDrop(sd, clamp(p.y, top, bot-6)); gas.splice(i,1); continue; }
+      p.x = sd*lim; p.vx = -sd*Math.abs(p.vx); flash(sd*(lim+R), p.y, true);
+    }
+    if(p.y < top){
+      // An open mouth lets particles escape whenever they reach it, even with the Bunsen off.
+      if(!s.sealed && !p.mode && Math.abs(p.x) < GAP-R && p.vy < 0){
+        // This molecule really has left: reduce the gas inventory. Outside air can replace it.
+        if(p.kind==='vap'){ s.nVap = Math.max(0,s.nVap-1/PER); s.escapedSteam += 1/PER; }
+        else s.nAir = Math.max(0,s.nAir-1/PER);
+        const [sx,sy] = toScreen(p.x, -HH-2);
+        plume.push({ x:sx, y:sy, vx:p.vx*f*.5 + rand(-8,8), vy:-Math.abs(p.vy*f)*.7 - 22, life:1, kind:p.kind });
+        gas.splice(i,1); continue;
+      }
+      if(p.mode==='esc' && Math.abs(p.x) < GAP-R) continue;
+      p.y = top; p.vy = Math.abs(p.vy); flash(p.x, top-R, true);
+    }
+    if(p.y > bot){ p.y = bot; p.vy = -Math.abs(p.vy); if(!lv) flash(p.x, bot+R, true); }
+  }
+  for(let i = plume.length-1; i >= 0; i--){ const p = plume[i]; p.x += p.vx*dt; p.y += p.vy*dt; p.vx *= 1 - .6*dt; p.life -= dt*.75; if(p.life <= 0) plume.splice(i,1); }
+  const dir = flipped() ? -1 : 1;
+  for(let i = drops.length-1; i >= 0; i--){ const d = drops[i]; d.age += dt; d.y += dir*(5 + 9*Math.min(1,d.age/3))*dt;
+    const end = dir > 0 ? (lv ? surfaceY() : HH-12) : -HH + 12 + plug();
+    if(dir > 0 ? d.y > end : d.y < end){ drops.splice(i,1); } }
+  for(let i = flashes.length-1; i >= 0; i--){ flashes[i].t += dt; if(flashes[i].t > .28) flashes.splice(i,1); }
+}
+function addDrop(sd, y){ if(drops.length > 40) drops.shift(); drops.push({ sd, y, age:0 }); }
+
+function moveOutside(dt){
+  const cy = canY(), sp = BASE*.9;
+  for(const p of outside){
+    p.x += p.vx*sp*dt; p.y += p.vy*sp*dt;
+    if(p.x < 6){ p.x = 6; p.vx = Math.abs(p.vx); } if(p.x > W-6){ p.x = W-6; p.vx = -Math.abs(p.vx); }
+    if(p.y < 6){ p.y = 6; p.vy = Math.abs(p.vy); } if(p.y > BENCH-8){ p.y = BENCH-8; p.vy = -Math.abs(p.vy); }
+    if(s.drop > .5 && p.x > 226 && p.x < 734 && p.y > 442){ p.y = 442; p.vy = -Math.abs(p.vy); }   // the cooling bath
+    const dx = p.x - CX, dy = p.y - cy, sd = dx < 0 ? -1 : 1;
+    const hx = wallX(sd, clamp(dy,-HH+16,HH-16))*sd - CX*sd + R - 1, hy = HH + WALL/2 + R - 1;
+    if(Math.abs(dx) < hx && Math.abs(dy) < hy){
+      if(hx - Math.abs(dx) < hy - Math.abs(dy)){ p.x = CX + sd*hx; p.vx = sd*Math.abs(p.vx); flash(p.x - sd*R, p.y, false); }
+      else { const v = dy < 0 ? -1 : 1; p.y = cy + v*hy; p.vy = v*Math.abs(p.vy); flash(p.x, p.y - v*R, false); }
+    }
+  }
+}
+
+/* ---------- model update ---------- */
+function step(dt){
+  s.t += dt;
+  // temperature
+  if(s.heating){
+    // 100 °C while water boils; after it has all evaporated, the dry can can grow hotter.
+    s.temp = s.sealed ? s.temp + 7*dt : Math.min(s.liquid>0 ? 100 : 125, s.temp + 7*dt);
+    if(s.temp > 60) s.everHot = true;
+  }
+  else if(s.cooling !== 'none'){ const c = COOL[s.cooling];
+    s.temp = s.temp > c.to ? Math.max(c.to, s.temp - Math.max(c.min, c.k*(s.temp-c.to))*dt) : Math.min(c.to, s.temp + 3*dt); }
+  else if(s.temp > ROOM) s.temp = Math.max(ROOM, s.temp - .35*dt);
+
+  phaseChange(dt);
+  if(!s.sealed){
+    exchangeOpen();
+    s.crushTarget = 0; // an open can cannot sustain a large pressure difference
+  } else {
+    // Once sealed, steam condenses into liquid and is no longer available to push on the walls.
+    // The pressure drop comes mainly from fewer particles in the gas phase, not smaller particles.
+    const rigid = POUT*(s.nAir+s.nVap)*tk(s.temp)/TK0;
+    s.crushTarget = smooth(30,75,POUT-rigid);
+  }
+  calc();
+
+  // walls respond to the pressure difference
+  // (the walls stay bent until the gas inside pushes harder than the atmosphere, which pushes them back out)
+  s.inflating = false;
+  if(s.crush < s.crushTarget && s.pIn < POUT - 5){ s.crush = Math.min(s.crushTarget, s.crush + (.3 + 3.2*s.crush)*dt);
+    if(!s.crunched && s.crushTarget > .75 && s.crush > .12){ s.crunched = true; s.shake = .35; toast('Crunch! The atmosphere pushes the walls in.', 4); } }
+  else if(s.sealed && s.crush > 0 && s.pIn > POUT + 2){ s.inflating = true;
+    s.crush = Math.max(0, s.crush - (.25 + .08*(s.pIn - POUT))*dt); calc();
+    if(s.crush === 0){ s.crunched = false; s.reinflated = true; s.reinflateT = s.t; toast('The gas inside now pushes harder than the atmosphere: the walls are pushed back out.', 6); } }
+  s.bulge += ((s.sealed && s.crush < .02 ? smooth(104,138,s.pIn) : 0) - s.bulge)*Math.min(1, 4*dt);
+  s.shake = Math.max(0, s.shake - dt);
+  if(s.sealed && s.heating && s.pIn >= 135){ s.heating = false; s.overheated = true;
+    if(!(s.t - s.reinflateT < 6)) toast('Bunsen switched off. A real sealed can could burst: never heat a sealed container.', 7); }
+
+  // apparatus animation
+  const move = (v,target,rate) => v + clamp(target - v, -rate*dt, rate*dt);
+  s.drop = move(s.drop, s.cooling==='water' || s.cooling==='ice' ? 1 : 0, 1.5);
+  s.flip = move(s.flip, s.method==='invert' ? 1 : 0, 1.3);
+  s.lid = move(s.lid, s.method==='lid' ? 1 : 0, 3);
+  s.flame = move(s.flame, s.heating ? 1 : 0, 4);
+
+  reconcile(dt); moveGas(dt); if(view.outside) moveOutside(dt);
+
+  // has the experiment finished?
+  if(!s.finished && !s.heating){
+    const tgt = s.cooling !== 'none' ? COOL[s.cooling].to : ROOM, active = s.cooling !== 'none' || (s.sealed && s.everHot);
+    const posed = Math.abs(s.drop - (s.cooling==='water'||s.cooling==='ice' ? 1 : 0)) < .01;
+    if(active && posed && Math.abs(s.temp - tgt) < .5 && s.crush >= s.crushTarget - .005){ s.settle += dt; if(s.settle > 1.3) finish(); } else s.settle = 0;
+  }
+}
+function finish(){ s.finished = true; s.outcome = s.crush >= .75 ? 'collapse' : s.crush >= .12 ? 'dent' : 'same'; ui(); }
+
+/* ---------- drawing ---------- */
+const rr = (x,y,w,h,r,fill,stroke,lw=1) => { ctx.beginPath(); ctx.roundRect(x,y,w,h,r); if(fill){ ctx.fillStyle = fill; ctx.fill(); } if(stroke){ ctx.lineWidth = lw; ctx.strokeStyle = stroke; ctx.stroke(); } };
+function particle(x,y,kind,a=1){
+  ctx.globalAlpha = a; ctx.beginPath(); ctx.arc(x,y,R,0,6.283);
+  ctx.fillStyle = kind==='vap' ? '#1c8fd6' : '#93a3ad'; ctx.fill();
+  ctx.lineWidth = 1.2; ctx.strokeStyle = kind==='vap' ? '#0f6aa8' : '#6f808b'; ctx.stroke();
+  ctx.beginPath(); ctx.arc(x-1.6,y-1.7,1.5,0,6.283); ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.fill(); ctx.globalAlpha = 1;
+}
+function arrow(x1,y1,x2,y2,color,w=7,a=1){
+  const len = Math.hypot(x2-x1,y2-y1); if(len < 3) return;
+  const ang = Math.atan2(y2-y1,x2-x1), hd = Math.min(15, len*.6);
+  ctx.save(); ctx.globalAlpha = a; ctx.translate(x1,y1); ctx.rotate(ang);
+  ctx.fillStyle = color; ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(0,-w/2); ctx.lineTo(len-hd,-w/2); ctx.lineTo(len-hd,-w/2-5); ctx.lineTo(len,0); ctx.lineTo(len-hd,w/2+5); ctx.lineTo(len-hd,w/2); ctx.lineTo(0,w/2); ctx.closePath();
+  ctx.stroke(); ctx.fill(); ctx.restore();
+}
+function note(text, tx, ty, ax, ay){
+  ctx.font = '650 14px system-ui,"Segoe UI",Arial,sans-serif'; const w = ctx.measureText(text).width + 22;
+  const left = tx < CX; const bx = left ? tx - w : tx;
+  ctx.strokeStyle = '#5b736c'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(left ? tx : tx, ty); ctx.lineTo(ax, ay); ctx.stroke();
+  ctx.beginPath(); ctx.arc(ax,ay,3,0,6.283); ctx.fillStyle = '#5b736c'; ctx.fill();
+  rr(bx, ty-15, w, 30, 15, 'rgba(255,255,255,.95)', '#b9cbc3', 1.2);
+  ctx.fillStyle = '#21453b'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(text, bx+11, ty+1);
+}
+
+function drawBackground(){
+  const g = ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#fafbf8'); g.addColorStop(1,'#eef3ee'); ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle = '#d5ddd6'; ctx.fillRect(0,BENCH,W,5); ctx.fillStyle = '#e6ebe5'; ctx.fillRect(0,BENCH+5,W,H-BENCH-5);
+}
+function drawOutside(){
+  if(view.outsideA < .02) return;
+  for(const p of outside) particle(p.x, p.y, 'air', view.outsideA*.9);
+}
+function drawBurner(a){
+  if(a < .02) return; ctx.save(); ctx.globalAlpha = a;
+  // tripod and gauze
+  ctx.strokeStyle = '#56686c'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(CX-152,414); ctx.lineTo(CX-178,BENCH-2); ctx.moveTo(CX+152,414); ctx.lineTo(CX+178,BENCH-2); ctx.stroke();
+  rr(CX-172,407,344,7,3,'#8a9a9c','#5d6f72',1);
+  ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 1; ctx.beginPath(); for(let x = CX-164; x < CX+168; x += 9){ ctx.moveTo(x,408); ctx.lineTo(x,413); } ctx.stroke();
+  // gas hose, base, barrel
+  ctx.strokeStyle = '#c47a3a'; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(CX+16,BENCH-22); ctx.bezierCurveTo(CX+90,BENCH-26,CX+150,BENCH+6,CX+260,BENCH-6); ctx.lineTo(W+10,BENCH-6); ctx.stroke();
+  rr(CX-48,BENCH-13,96,14,6,'#3f545a');
+  const g = ctx.createLinearGradient(CX-11,0,CX+11,0); g.addColorStop(0,'#8b9da1'); g.addColorStop(.45,'#dfe7e7'); g.addColorStop(1,'#7c8f93');
+  rr(CX-11,472,22,BENCH-13-472,3,g,'#56696d',1.2); rr(CX-16,BENCH-46,32,17,4,'#5d7278','#45585d',1);
+  ctx.beginPath(); ctx.arc(CX,BENCH-37.5,3.5,0,6.283); ctx.fillStyle = '#26363a'; ctx.fill();
+  ctx.restore();
+  // flame: a blue Bunsen flame with a pale inner cone
+  const f = s.flame*a; if(f < .02) return;
+  const t = now, h = 60*f*(1 + .05*Math.sin(t*23) + .04*Math.sin(t*37.7)), w = 19*f, sway = 3*Math.sin(t*9.1), y = 472;
+  const glow = ctx.createRadialGradient(CX,y-30,4,CX,y-30,95); glow.addColorStop(0,`rgba(255,170,70,${.20*f})`); glow.addColorStop(1,'rgba(255,170,70,0)');
+  ctx.fillStyle = glow; ctx.fillRect(CX-100,y-125,200,150);
+  const fg = ctx.createLinearGradient(0,y,0,y-h); fg.addColorStop(0,'rgba(52,120,246,.75)'); fg.addColorStop(.6,'rgba(90,150,255,.5)'); fg.addColorStop(1,'rgba(150,190,255,.12)');
+  ctx.beginPath(); ctx.moveTo(CX-10,y); ctx.bezierCurveTo(CX-w*1.5,y-h*.4,CX-w*.5,y-h*.8,CX+sway,y-h); ctx.bezierCurveTo(CX+w*.5,y-h*.8,CX+w*1.5,y-h*.4,CX+10,y); ctx.closePath(); ctx.fillStyle = fg; ctx.fill();
+  ctx.beginPath(); ctx.moveTo(CX-6,y); ctx.quadraticCurveTo(CX-7,y-h*.3,CX+sway*.3,y-h*.5); ctx.quadraticCurveTo(CX+7,y-h*.3,CX+6,y); ctx.closePath(); ctx.fillStyle = `rgba(205,240,255,${.9*f})`; ctx.fill();
+}
+const ICE = [[262,0],[300,7],[334,-2],[628,5],[664,-3],[698,6]];
+function drawBath(a, front){
+  if(a < .02) return; ctx.save(); ctx.globalAlpha = a;
+  const x = 232, y = 448, w = 496, top = 470 + (1-a)*10, ice = s.cooling==='ice';
+  if(!front){
+    rr(x,y,w,BENCH-y+2,14,'rgba(214,232,238,.55)');
+    const g = ctx.createLinearGradient(0,top,0,BENCH); g.addColorStop(0, ice ? '#bfe3f4' : '#9fd2e8'); g.addColorStop(1,'#4fa4cf');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.roundRect(x+7,top,w-14,BENCH-top-5,[0,0,9,9]); ctx.fill();
+  } else {
+    ctx.fillStyle = ice ? 'rgba(170,218,240,.42)' : 'rgba(110,190,225,.40)'; ctx.beginPath(); ctx.roundRect(x+7,top,w-14,BENCH-top-5,[0,0,9,9]); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 2.5; ctx.beginPath();
+    for(let px = x+8; px <= x+w-8; px += 6){ const py = top + Math.sin(px*.04 + now*2.2)*1.6; px === x+8 ? ctx.moveTo(px,py) : ctx.lineTo(px,py); } ctx.stroke();
+    if(ice) ICE.forEach(([ix,o],k) => { ctx.save(); ctx.translate(ix, top + 4 + o + Math.sin(now*1.7 + k)*1.5); ctx.rotate(.25*Math.sin(k*2.1) + .04*Math.sin(now + k));
+      rr(-13,-11,26,22,5,'rgba(240,251,255,.92)','#9fcfe6',1.5); ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-7,-5); ctx.lineTo(1,-5); ctx.stroke(); ctx.restore(); });
+    rr(x,y,w,BENCH-y+2,14,null,'#7f9aa3',3);
+  }
+  ctx.restore();
+}
+function drawCan(){
+  const cy = canY();
+  ctx.save(); ctx.translate(CX, cy); ctx.rotate(Math.PI*ease(s.flip));
+  // interior of the cutaway
+  wallPath(true);
+  const ig = ctx.createLinearGradient(-HW,0,HW,0); ig.addColorStop(0,'#dfe9ea'); ig.addColorStop(.2,'#f2f7f7'); ig.addColorStop(.8,'#f2f7f7'); ig.addColorStop(1,'#dfe9ea');
+  ctx.fillStyle = ig; ctx.fill();
+  ctx.save(); wallPath(true); ctx.clip();
+  // warm glow at the heated base
+  if(s.flame > .02){ const hg = ctx.createLinearGradient(0,HH-60,0,HH); hg.addColorStop(0,'rgba(240,150,60,0)'); hg.addColorStop(1,`rgba(240,150,60,${.28*s.flame})`); ctx.fillStyle = hg; ctx.fillRect(-HW,HH-60,2*HW,60); }
+  // liquid water: the same particles, close together and jostling
+  const lv = liquidVis();
+  if(lv > .02 && s.liquid>0){
+    const sy = surfaceY(), jig = .7 + s.temp/100*1.8, sp = 3 + s.temp/100*7;
+    ctx.globalAlpha = lv; ctx.fillStyle = 'rgba(120,195,235,.35)'; ctx.fillRect(-HW,sy-1,2*HW,HH-sy);
+    ctx.strokeStyle = 'rgba(28,143,214,.55)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(-HW,sy-1); ctx.lineTo(HW,sy-1); ctx.stroke(); ctx.globalAlpha = 1;
+    let k = 0; for(let y = HH - WALL/2 - R - 1; y > sy + R - 2; y -= 9.6){ const off = (k++ % 2)*5.4;
+      for(let x = -HW + 9 + off; x < HW - 6; x += 10.8) particle(x + Math.sin(now*sp + x*.9 + y)*jig, y + Math.cos(now*sp*1.1 + x*.7)*jig*.7, 'vap', lv); }
+    if(s.heating && s.temp >= 99.5) for(let i = 0; i < 7; i++){ const ph = (now*.9 + i*.37) % 1, bx = -92 + i*31 + Math.sin(now*3 + i)*4, by = HH - 8 - ph*(HH - 8 - sy);
+      ctx.beginPath(); ctx.arc(bx,by,3 + ph*3.5,0,6.283); ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.fill(); ctx.strokeStyle = 'rgba(28,143,214,.6)'; ctx.lineWidth = 1; ctx.stroke(); }
+  }
+  // When inverted, condensed steam collects as visible liquid near the submerged opening.
+  if(s.flip>.02 && s.liquid>.001){
+    const a = ease(s.flip), depth = 3 + 42*s.liquid;
+    ctx.globalAlpha = a;
+    ctx.fillStyle = 'rgba(70,168,219,.45)';
+    ctx.fillRect(-HW+WALL, -HH+WALL, 2*(HW-WALL), depth);
+    for(let row=0; row<Math.floor(depth/12); row++){
+      for(let x=-HW+14; x<HW-10; x+=16) particle(x+Math.sin(now*4+x)*1.1, -HH+WALL+8+row*12, 'vap', a*.8);
+    }
+    ctx.globalAlpha = 1;
+  }
+  // bath water held in the mouth of an inverted can
+  const pg = plug(); if(pg > 0){ ctx.fillStyle = 'rgba(95,180,222,.6)'; ctx.fillRect(-HW,-HH,2*HW,pg + WALL/2); }
+  // condensed water on the walls
+  for(const d of drops){ const x = d.sd*(half(d.y,d.sd) - WALL/2 - R - .5), a = Math.min(1, d.age*4);
+    ctx.beginPath(); ctx.ellipse(x, d.y, R+2.5, R+4.5, 0, 0, 6.283); ctx.fillStyle = `rgba(120,195,235,${.5*a})`; ctx.fill(); particle(x, d.y, 'vap', a); }
+  // gas particles
+  for(const p of gas) particle(p.x, p.y, p.kind, p.mode==='in' ? clamp((p.y + HH + 44)/40, 0, 1) : 1);
+  // collisions with the inside of the walls
+  for(const f of flashes) if(f.inside){ const a = 1 - f.t/.28; ctx.beginPath(); ctx.arc(f.x,f.y,3 + f.t*26,0,6.283); ctx.strokeStyle = `rgba(14,124,134,${.7*a})`; ctx.lineWidth = 2; ctx.stroke(); }
+  ctx.restore();
+  // aluminium wall (cut edge)
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  wallPath(false); ctx.lineWidth = WALL + 2.5; ctx.strokeStyle = '#586c71'; ctx.stroke();
+  const wg = ctx.createLinearGradient(-HW,0,HW,0); wg.addColorStop(0,'#a9b8bb'); wg.addColorStop(.3,'#e9eff0'); wg.addColorStop(.55,'#c3cfd1'); wg.addColorStop(1,'#9fafb3');
+  wallPath(false); ctx.lineWidth = WALL - .5; ctx.strokeStyle = wg; ctx.stroke();
+  if(s.flame > .02){ ctx.beginPath(); ctx.moveTo(-HW+20,HH); ctx.lineTo(HW-20,HH); ctx.strokeStyle = `rgba(235,130,50,${.5*s.flame})`; ctx.lineWidth = WALL - .5; ctx.stroke(); }
+  // lid
+  if(s.lid > .01){ const e = ease(s.lid); ctx.globalAlpha = e; rr(-GAP-9 + (1-e)*70, -HH-7, 2*GAP+18, 12, 5, '#6b7f84', '#45575b', 1.5); rr(-9 + (1-e)*70, -HH-12, 18, 6, 3, '#6b7f84', '#45575b', 1.2); ctx.globalAlpha = 1; }
+  ctx.restore();
+}
+function drawPlume(){
+  // faint mist where escaping steam meets cooler air
+  if(!s.sealed && s.heating && s.temp >= 99.5 && s.liquid>0){ const cy = canY() - HH;
+    for(let i = 0; i < 5; i++){ const ph = (now*.35 + i*.2) % 1, r = 16 + ph*30;
+      const g = ctx.createRadialGradient(CX + Math.sin(now + i*2)*14*ph, cy - 10 - ph*95, 2, CX, cy - 10 - ph*95, r); g.addColorStop(0,`rgba(215,232,240,${.5*(1-ph)})`); g.addColorStop(1,'rgba(215,232,240,0)');
+      ctx.fillStyle = g; ctx.fillRect(CX-70, cy-150, 140, 150); } }
+  for(const p of plume) particle(p.x, p.y, p.kind, clamp(p.life*1.4, 0, 1));
+  for(const f of flashes) if(!f.inside && view.outsideA > .3){ const a = (1 - f.t/.28)*view.outsideA; ctx.beginPath(); ctx.arc(f.x,f.y,3 + f.t*26,0,6.283); ctx.strokeStyle = `rgba(198,120,30,${.75*a})`; ctx.lineWidth = 2; ctx.stroke(); }
+}
+function drawForces(){
+  const a = view.forceA; if(a < .02) return;
+  const cy = canY(), L = 66, lin = clamp(L*s.pIn/POUT, 0, 104), dP = POUT - s.pIn, lres = clamp(L*Math.abs(dP)/POUT, 0, 90);
+  for(const sd of [-1,1]){
+    for(const dy of [-54,54]){
+      const wx = wallX(sd,dy);
+      arrow(wx + sd*(8+L), cy+dy, wx + sd*8, cy+dy, '#d6862a', 8, a);                       // outside air pushes in
+      arrow(wx - sd*(WALL+8+lin), cy+dy, wx - sd*(WALL+8), cy+dy, '#0e7c86', 8, a);          // inside gas pushes out
+    }
+    if(lres > 4){ const wx = wallX(sd,0);
+      if(dP > 0) arrow(wx + sd*(10+lres), cy, wx + sd*10, cy, '#c2452d', 11, a);
+      else arrow(wx + sd*10, cy, wx + sd*(10+lres), cy, '#c2452d', 11, a); }
+  }
+  if(view.explain){ ctx.globalAlpha = a; ctx.font = '700 12px system-ui,"Segoe UI",Arial,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const wx = wallX(1,-54) + 8 + L/2;
+    const halo = (t,x,y,col) => { ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(250,251,248,.92)'; ctx.lineJoin = 'round'; ctx.strokeText(t,x,y); ctx.fillStyle = col; ctx.fillText(t,x,y); };
+    halo('atmosphere pushes in', wx + 26, cy - 54 - 25, '#9a5c12');
+    if(lres > 4){ halo('resultant force', wallX(1,0) + 12 + Math.max(lres,70)/2 + 14, cy + 27, '#a8371f'); }
+    ctx.globalAlpha = 1; }
+}
+function drawNotes(){
+  if(!view.explain || s.flip > .02 && s.flip < .98) return;
+  const cy = canY(), up = !flipped(), leftX = CX - HW - 34;
+  if(s.finished && s.outcome==='collapse') return;
+  if(!s.sealed && s.liquid===0 && s.temp>=95) note('liquid gone; hot steam remains', leftX, cy - HH - 26, CX - 16, cy - HH - 16);
+  else if(!s.sealed && s.heating && s.temp >= 99.5) note(s.x > .9 ? 'the can is now full of steam' : 'steam pushes the air out', leftX, cy - HH - 26, CX - 16, cy - HH - 16);
+  else if(!s.sealed && s.entering > 0 && !s.heating) note('air flows back in', leftX, cy - HH - 26, CX - 14, cy - HH - 14);
+  else if(s.sealed && s.heating) note('faster particles hit the walls harder', leftX, cy - HH - 26, CX - HW + 14, cy - HH + 44);
+  else if(s.sealed && s.condensing > 0) note('steam condenses on the cool walls', leftX, up ? cy - HH - 26 : cy + HH + 2, CX - HW + 10, up ? cy - 60 : cy + 60);
+  else if(!s.sealed && s.heating) note('particles gain kinetic energy', leftX, cy - HH - 26, CX - 40, cy - 30);
+  else if(s.t < 9 && !s.everHot && !s.sealed && s.cooling==='none') note('liquid water', leftX, cy + HH - 20, CX - HW + 26, cy + HH - 20);
+}
+function render(){
+  ctx.setTransform(scale,0,0,scale,0,0);
+  if(s.shake > 0 && !reduced) ctx.translate(rand(-1,1)*10*s.shake, rand(-1,1)*10*s.shake);
+  drawBackground(); drawOutside();
+  const d = ease(s.drop);
+  drawBurner(1-d); drawBath(d,false); drawCan(); drawBath(d,true);
+  drawPlume(); drawForces(); drawNotes();
+}
+
+/* ---------- interface ---------- */
+let toastTimer = 0;
+function toast(msg, secs = 5){ const el = $('toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), secs*1000); }
+const press = (id,on) => $(id).setAttribute('aria-pressed', on ? 'true' : 'false');
+const TERMS = /(temperature|kinetic energy|collisions|condensation|condense[sd]?|internal pressure|atmospheric pressure|resultant force)/g;
+const hl = t => t.replace(TERMS, '<b>$1</b>');
+
+function coach(){
+  if(!s.sealed){
+    if(s.liquid===0 && s.temp>=95) return ['All the liquid has evaporated', 'The water supply is finite. Hot, energetic steam particles still remain inside, but they are escaping through the opening and cannot be replaced indefinitely. Incoming air warms up too.'];
+    if(s.heating && s.temp >= 99.5) return s.x > .9
+      ? ['The can is full of steam', 'Almost all the air has been pushed out. The can is still open, so the internal pressure equals atmospheric pressure. Seal it when you are ready; prediction is optional.']
+      : ['Boiling', 'Water particles have enough kinetic energy to leave the liquid and become a gas (steam). The steam is pushing air out through the opening.'];
+    if(s.heating) return ['Heating', 'The temperature is rising, so particles inside gain kinetic energy and move faster, including incoming air. Some gas escapes through the opening. There are fewer gas particles inside at higher temperature, keeping internal pressure close to atmospheric pressure.'];
+    if(s.cooling !== 'none') return ['Cooling an open can', 'Steam condenses as the temperature falls, but air flows in through the opening to take its place. Watch the two pressure readings.'];
+    if(s.everHot) return ['Burner off', 'The can is open and slowly cooling. Air can flow back in. Reheat it, or predict and seal it.'];
+    return ['Start', 'Pressure is caused by particles colliding with surfaces. Air particles hit the inside and the outside of the can walls, so the forces on the walls balance. Turn on the Bunsen to begin.'];
+  }
+  if(((s.heating || s.inflating) && (s.crush > .02 || s.reinflated)) || (s.reinflated && s.cooling === 'none' && s.temp > 96)) return ['Reheating the sealed can', 'Nothing can get out. As the temperature rises, water evaporates again, so there are more gas particles with more kinetic energy. Their collisions with the walls raise the internal pressure. Once it is greater than atmospheric pressure, the resultant force is outwards and the walls are pushed back out. (A real can would stay creased.) If it cools again, the steam condenses and it collapses again.'];
+  if(s.heating) return ['Heating a sealed can', 'No gas can escape. A higher temperature means more kinetic energy, so collisions with the walls are harder and more frequent. More water also evaporates. The internal pressure rises above atmospheric pressure, so the resultant force is outwards.'];
+  if(s.cooling !== 'none' || s.temp < 96) return ['Cooling a sealed can', 'As the temperature falls, steam condenses back into liquid water. Fewer gas particles are left to collide with the inside walls. Nothing can get in to replace them. Watch the internal pressure.'];
+  return ['Sealed', 'Nothing can get in or out now. What will happen to the steam, and to the internal pressure, when the can cools? Choose how to cool it.'];
+}
+function resultHTML(){
+  const p = Math.round(s.pIn), obs = { collapse:'The can collapsed', dent:'The can was dented', same:'The can kept its shape' }[s.outcome];
+  let steps, tip = '';
+  if(!s.sealed){
+    steps = ['The can was open, so gas could move in and out through the opening.',
+      'As the temperature fell, steam condensed. But air from outside flowed in to replace it.',
+      'Collisions on the inside walls stayed as strong as on the outside: internal pressure stayed equal to atmospheric pressure (about 101 kPa).',
+      'With no pressure difference there was no resultant force on the walls, so the can kept its shape.'];
+    tip = 'To crush the can, the opening must be sealed before it cools.';
+  } else if(s.outcome === 'same'){
+    steps = [s.xSeal < .5 ? 'The can was sealed while it still held mostly air and very little steam.' : 'The can was sealed.',
+      'Cooling lowered the temperature, so the particles had less kinetic energy and their collisions with the walls were a little gentler.',
+      'Air does not condense at these temperatures, so nearly all the gas particles stayed as gas.',
+      `Internal pressure fell only to about ${p} kPa. The resultant force from atmospheric pressure was too small to bend the walls.`];
+    if(s.heatedSealed) steps.unshift('While the sealed can was heated, the internal pressure rose above atmospheric pressure, and fell again as it cooled.');
+    tip = 'Boil the water in the open can until steam has pushed the air out. Then seal it and cool it.';
+  } else {
+    const full = s.outcome === 'collapse';
+    steps = ['Heating raised the temperature. Water particles gained kinetic energy, the water boiled, and steam pushed ' + (full ? 'almost all' : 'some') + ' of the air out of the open can.',
+      (s.method === 'invert' ? 'Turning the can over into cold water sealed the opening' : 'The lid sealed the opening') + ', so no air could get back in.',
+      'As the can cooled, water vapour condensed back into liquid water, which occupies far less space. The particles did not shrink: far fewer particles remained in the gas phase.',
+      `Fewer, slower gas particles made fewer and gentler collisions with the inside walls, so the internal pressure fell to about ${p} kPa.`,
+      full ? 'Atmospheric pressure outside was still about 101 kPa. The resultant force on the walls was inwards and large enough to crush the can.'
+           : 'Atmospheric pressure outside was still about 101 kPa. Air left in the can kept some pressure inside, so the inward resultant force only dented the walls.'];
+    if(!full) tip = 'For a full collapse, keep the water boiling for longer so that steam pushes out more of the air before you seal the can.';
+  }
+  if(s.method === 'lid' && s.outcome !== 'same') tip += (tip ? ' ' : '') + 'Could the can be pushed back out? Turn the Bunsen on again with the lid still on.';
+  let verdict = '';
+  if(s.prediction){ const ok = s.prediction === s.outcome || (s.prediction === 'collapse' && s.outcome === 'dent');
+    const said = { collapse:'collapse', same:'stay the same', expand:'expand' }[s.prediction];
+    verdict = `<div class="verdict${ok ? ' ok' : ''}">You predicted it would ${said}: ${ok ? 'that matches' : 'that is not what happened'}</div>`; }
+  return `<h2>${obs}</h2>${verdict}<ol class="chain">${steps.map(t => `<li>${hl(t)}</li>`).join('')}</ol>${tip ? `<div class="tip">${tip}</div>` : ''}<button type="button" class="again" id="againBtn">Start again</button>`;
+}
+let lastExplain = '';
+function ui(){
+  const boiling = s.heating && s.temp >= 99.5 && !s.sealed, dP = POUT - s.pIn;
+  // status
+  const where = !s.sealed ? 'Open' : s.method === 'invert' ? 'Sealed under water' : 'Lid on';
+  const what = s.finished ? { collapse:'collapsed', dent:'dented', same:'no collapse' }[s.outcome] : s.inflating ? 're-inflating' : s.crush > .05 && s.crush < s.crushTarget - .01 ? 'collapsing' : s.crush >= .75 ? 'collapsed' : s.crush >= .12 ? 'dented' : boiling ? 'boiling' : s.heating ? 'heating' : s.cooling !== 'none' ? 'cooling' : s.temp > ROOM + 1 ? 'hot' : 'room temperature';
+  $('statusText').textContent = where + ' · ' + what;
+  $('status').className = 'status' + (s.crush > .12 ? ' crushed' : s.heating ? ' hot' : s.cooling !== 'none' ? ' cold' : '');
+  // readings
+  $('tempVal').textContent = Math.round(s.temp); $('pinVal').textContent = Math.round(s.pIn); $('poutVal').textContent = Math.round(POUT);
+  $('tempBar').style.width = clamp(s.temp/110*100, 2, 100) + '%'; $('pinBar').style.width = clamp(s.pIn/150*100, 0, 100) + '%';
+  $('diffVal').textContent = Math.abs(Math.round(dP));
+  $('diffDir').textContent = Math.abs(dP) < 1.5 ? 'balanced' : dP > 0 ? 'outside is greater' : 'inside is greater';
+  $('diffBox').classList.toggle('big', Math.abs(dP) >= 20);
+  $('waterReadout').textContent = s.liquid>0 ? 'Liquid water: '+Math.round(100*s.liquid)+'% (model)' : 'Liquid water: none left (steam may remain)';
+  // controls
+  const h = $('heatBtn'); h.textContent = s.heating ? 'Turn Bunsen off' : 'Turn Bunsen on'; press('heatBtn', s.heating);
+  h.disabled = s.method === 'invert' || (s.finished && !s.sealed) || (s.sealed && !s.heating && s.pIn >= 128);
+  press('lidBtn', s.method === 'lid'); press('invertBtn', s.method === 'invert');
+  $('lidBtn').disabled = $('invertBtn').disabled = s.sealed || s.finished;
+  for(const k of ['air','water','ice']){ press(k+'Btn', s.cooling === k); $(k+'Btn').disabled = s.finished || s.method === 'invert'; }
+  document.querySelectorAll('input[name="pred"]').forEach(el => { el.disabled = s.predLocked; el.checked = el.value === s.prediction; });
+  $('reason').disabled = s.predLocked; $('skipBtn').disabled = s.predLocked || !!s.prediction;
+  $('skipBtn').textContent = s.skipped && !s.prediction ? 'Prediction skipped' : 'Skip the prediction';
+  press('outsideBtn', view.outside); press('forceBtn', view.forces); press('explainBtn', view.explain); press('pauseBtn', view.paused);
+  $('pauseBtn').firstChild.textContent = view.paused ? 'Resume ' : 'Pause ';
+  document.body.classList.toggle('quiet', !view.explain); document.body.classList.toggle('show-forces', view.forces); $('stage').classList.toggle('is-paused', view.paused);
+  // which step comes next
+  const next = s.finished ? 0 : !s.everHot && !s.sealed ? 1 : !s.sealed ? 3 : s.cooling === 'none' ? 4 : 0;
+  for(let i = 1; i <= 4; i++) $('card'+i).classList.toggle('next', i === next);
+  // hints
+  $('heatHint').textContent = s.sealed ? (s.method === 'invert' ? 'Only a can with a lid can go back on the Bunsen.' : s.pIn >= 128 ? 'The internal pressure is too high to heat any more.' : s.heating ? 'Watch the internal pressure as the sealed can heats up.' : s.crush > .12 ? 'The lid is still on. What would heating the can do now?' : 'The can is sealed. What would heating it now do to the internal pressure?')
+    : s.liquid===0 && s.everHot ? 'All the liquid has evaporated; the hot steam remaining in the can is gradually escaping.' : boiling ? (s.x > .9 ? 'Steam has pushed out almost all the air.' : 'Keep boiling: steam is pushing the air out.') : s.heating ? 'Watch how the particles move as the temperature rises.' : s.everHot ? 'The open can is cooling and air is flowing back in.' : 'The water starts at room temperature.';
+  $('sealHint').textContent = s.sealed ? (s.method === 'invert' ? 'The opening is under cold water: no air can get in.' : 'The lid stops gas getting in or out.') : s.x > .9 ? 'Full of steam: a good moment to seal.' : 'You can seal at any time. Does the timing matter?';
+  $('coolHint').textContent = s.method === 'invert' ? 'The cold water bath is cooling the can.' : s.finished ? (s.method === 'lid' ? 'Finished. Reheat the lidded can, or start again.' : 'Finished. Start again to try a different sequence.') : s.cooling !== 'none' ? 'Cooling. Watch the particles and the pressure readings.' : 'Choose how to cool the can. A prediction is optional.';
+  // explanation panel
+  const html = s.finished ? resultHTML() : (([t,b]) => `<h2>${t}</h2><p>${hl(b)}</p>`)(coach());
+  if(html !== lastExplain){ lastExplain = html; $('explainBox').innerHTML = html; const again = $('againBtn'); if(again) again.onclick = reset; }
+}
+
+function needPrediction(){
+  if(s.prediction || s.skipped) return false;
+  toast('Predict first: will the can collapse, stay the same or expand?');
+  const c = $('card2'); c.classList.remove('pulse'); void c.offsetWidth; c.classList.add('pulse'); c.scrollIntoView({ block:'nearest', behavior: reduced ? 'auto' : 'smooth' });
+  return true;
+}
+function toggleHeat(){
+  if($('heatBtn').disabled) return;
+  if(!s.heating && s.sealed){ s.heatedSealed = true; s.finished = false; s.outcome = ''; s.settle = 0; toast('Heating a sealed can: watch the internal pressure. Never do this in a real lab.', 6); }
+  s.heating = !s.heating; if(s.heating) s.cooling = 'none'; ui();
+}
+function seal(method){
+  if(s.sealed || s.finished) return;
+  calc(); s.heating = false; s.sealed = true; s.method = method; s.xSeal = s.x;
+  if(method === 'invert'){ s.cooling = 'water'; s.predLocked = true; }
+  if(s.xSeal < .5) toast(s.temp < 40 ? 'The can is cold and full of air. Will cooling it change much?' : 'Sealed with mostly air inside. Air does not condense when it cools. What might that change?', 7);
+  else toast(method === 'invert' ? 'The cold water seals the opening and cools the can.' : 'Lid on: gas can no longer get in or out.', 4);
+  ui();
+}
+function cool(kind){
+  if(s.finished || s.method === 'invert') return;
+  s.heating = false; s.cooling = kind; s.predLocked = true;
+  if(!s.sealed) toast('The can is still open, so air can flow in as it cools. Will a pressure difference build up?', 7);
+  ui();
+}
+function reset(){ s = initial(); build(); $('reason').value = ''; $('toast').classList.remove('show'); view.paused = false; last = performance.now(); ui(); }
+
+$('heatBtn').onclick = toggleHeat;
+$('lidBtn').onclick = () => seal('lid'); $('invertBtn').onclick = () => seal('invert');
+$('airBtn').onclick = () => cool('air'); $('waterBtn').onclick = () => cool('water'); $('iceBtn').onclick = () => cool('ice');
+$('outsideBtn').onclick = () => { view.outside = !view.outside; ui(); };
+$('forceBtn').onclick = () => { view.forces = !view.forces; ui(); };
+$('explainBtn').onclick = () => { view.explain = !view.explain; ui(); };
+$('pauseBtn').onclick = () => { view.paused = !view.paused; ui(); };
+$('reset').onclick = reset;
+$('skipBtn').onclick = () => { s.skipped = true; ui(); };
+document.querySelectorAll('input[name="pred"]').forEach(el => el.addEventListener('change', () => { if(!s.predLocked){ s.prediction = el.value; ui(); } }));
+document.addEventListener('keydown', e => {
+  if(e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+  const tag = e.target.tagName; if(tag === 'TEXTAREA' || (tag === 'INPUT' && e.target.type !== 'radio')) return;
+  const map = { h:toggleHeat, l:() => seal('lid'), i:() => seal('invert'), '1':() => cool('air'), '2':() => cool('water'), '3':() => cool('ice'),
+    a:() => $('outsideBtn').click(), f:() => $('forceBtn').click(), e:() => $('explainBtn').click(), p:() => $('pauseBtn').click(), r:reset };
+  const fn = map[e.key.toLowerCase()]; if(fn){ e.preventDefault(); fn(); }
+});
+
+/* ---------- main loop ---------- */
+let scale = 1;
+function fit(){ const w = cv.clientWidth || W, px = Math.min(1920, Math.round(w*(window.devicePixelRatio || 1))); const bw = Math.max(W/2, px);
+  if(cv.width !== bw){ cv.width = bw; cv.height = Math.round(bw*H/W); } scale = cv.width/W; }
+addEventListener('resize', fit);
+function frame(t){
+  const dt = Math.min(.05, Math.max(0, (t - last)/1000)); last = t;
+  view.outsideA += clamp((view.outside ? 1 : 0) - view.outsideA, -dt*3, dt*3);
+  view.forceA += clamp((view.forces ? 1 : 0) - view.forceA, -dt*4, dt*4);
+  if(!view.paused && dt > 0){ now += dt; step(dt); }
+  render();
+  if(++frames % 6 === 0) ui();
+  requestAnimationFrame(frame);
+}
+build(); fit(); ui(); requestAnimationFrame(frame);
+
+// small hook for automated checks
+window.__can = { get state(){ return s; }, view, step: (secs) => { for(let i = 0; i < secs*40; i++) step(.025); ui(); render(); } };
+})();
+</script>
+</body>
+</html>
